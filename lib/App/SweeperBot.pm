@@ -31,9 +31,12 @@ use constant CHEAT => 1;
 use constant UBER_CHEAT => 0;
 
 # use constant CHEAT_SAFE    => "d0737abfd3abdacfeb15d559e28c2f0b3662a7aa03ac5b7a58afc422110db75a";	# Old 58
-use constant CHEAT_SAFE    => "ad95131bc0b799c0b1af477fb14fcf26a6a9f76079e48bf090acb7e8367bfd0e";
+# use constant CHEAT_SAFE    => "ad95131bc0b799c0b1af477fb14fcf26a6a9f76079e48bf090acb7e8367bfd0e";	# Old 510
+use constant CHEAT_SAFE => "d0737abfd3abdacfeb15d559e28c2f0b3662a7aa03ac5b7a58afc422110db75a";
+
 # use constant CHEAT_UNSAFE  => "374708fff7719dd5979ec875d56cd2286f6d3cf7ec317a3b25632aab28ec37bb";	# Old 58
-use constant CHEAT_UNSAFE  => "e3820096cb82366b860b8a4e668453a7aaaf423af03bdf289fa308ea03a79332";
+# use constant CHEAT_UNSAFE  => "e3820096cb82366b860b8a4e668453a7aaaf423af03bdf289fa308ea03a79332";	# Old 510
+use constant CHEAT_UNSAFE => "374708fff7719dd5979ec875d56cd2286f6d3cf7ec317a3b25632aab28ec37bb";
 
 # alarm(180);	# Nuke process after three minutes, in case of run-aways.
 
@@ -222,9 +225,10 @@ sub game_over {
 
     my $sig = $smiley->Get("signature");
 
-    # (5.10 smileys first, then 5.8)
+    # (5.10 new smileys first, then 5.10 smileys, then 5.8)
     
-    if ($sig eq "d28bcc05d38fd736f6715388a12cb0b96da9852432669671ee7866135f35bbb7" or
+    if (
+	$sig eq "d28bcc05d38fd736f6715388a12cb0b96da9852432669671ee7866135f35bbb7" or
 	$sig eq "efef2037072c56fb029da1dd2cd626282173d0e1b2be39eab3e955cd2bcdc856") {
         return 1;
     }
@@ -232,8 +236,13 @@ sub game_over {
 	   $sig eq "7cf1797ad25730136aa67c0a039b0c596f1aed9de8720999145248c72df52d1b") {
         return -1;
     }
-    # XXX - NB, the following is only a 5.10 smiley
-    elsif ($sig eq "0955e50dda3f850913392d4e654f9ef45df046f063a4b8faeff530609b37379f") { return 0; }
+    # XXX - NB, the following is only a 5.10 new + 5.10 old smiley
+    elsif (
+	$sig eq "56f7c05869d42918830e80ad5bf841109d88e17b38fc069c3e5bf19623a88711" or
+
+	$sig eq "0955e50dda3f850913392d4e654f9ef45df046f063a4b8faeff530609b37379f") {
+	return 0; 
+    }
 
     die "I don't know what the smiley means\n$sig\n";
 

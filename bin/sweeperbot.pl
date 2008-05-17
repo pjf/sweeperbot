@@ -1,9 +1,7 @@
 #!/usr/bin/perl -w
 use strict;
 
-use App::MineSweeper;
-
-use constant CHEAT => 0;
+use App::SweeperBot;
 
 print "SweeperBot, Copyright 2005-2008 Paul Fenwick <pjf\@cpan.org>\n";
 print "Based upon code Copyright 2005 Matt Sparks <root\@f0rked.com>\n";
@@ -11,9 +9,11 @@ print "\n";
 
 # Start Minesweeper.
 
+package App::SweeperBot;
+
 Win32::Process::Create(
 	my $minesweeper,
-	'c:\WINDOWS\system32\winmine.exe',
+	"$ENV{SystemRoot}\\system32\\winmine.exe",
 	"",
 	0,
 	NORMAL_PRIORITY_CLASS,
