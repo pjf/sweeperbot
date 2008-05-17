@@ -26,17 +26,26 @@ use warnings;
 use Scalar::Util qw(looks_like_number);
 use Win32::Process qw(NORMAL_PRIORITY_CLASS);
 
-use constant DEBUG => 0;
+use constant DEBUG => 1;
 use constant CHEAT => 1;
 use constant UBER_CHEAT => 0;
 
-# use constant CHEAT_SAFE    => "d0737abfd3abdacfeb15d559e28c2f0b3662a7aa03ac5b7a58afc422110db75a";	# Old 58
-# use constant CHEAT_SAFE    => "ad95131bc0b799c0b1af477fb14fcf26a6a9f76079e48bf090acb7e8367bfd0e";	# Old 510
-use constant CHEAT_SAFE => "d0737abfd3abdacfeb15d559e28c2f0b3662a7aa03ac5b7a58afc422110db75a";
+use constant SMILEY_LENGTH => 26;
 
-# use constant CHEAT_UNSAFE  => "374708fff7719dd5979ec875d56cd2286f6d3cf7ec317a3b25632aab28ec37bb";	# Old 58
+# The minimum and maximum top dressings define the range in which
+# we'll look for a smiley, which we use to calibrate our board.  Different
+# windows themes put them in different places.
+
+use constant MINIMUM_TOP_DRESSING => 56;
+use constant MAXIMUM_TOP_DRESSING => 75;
+
+my $Smiley_offset = 0;
+
+use constant CHEAT_SAFE    => "d0737abfd3abdacfeb15d559e28c2f0b3662a7aa03ac5b7a58afc422110db75a";	# Old 58
+# use constant CHEAT_SAFE    => "ad95131bc0b799c0b1af477fb14fcf26a6a9f76079e48bf090acb7e8367bfd0e";	# Old 510
+
+use constant CHEAT_UNSAFE  => "374708fff7719dd5979ec875d56cd2286f6d3cf7ec317a3b25632aab28ec37bb";	# Old 58
 # use constant CHEAT_UNSAFE  => "e3820096cb82366b860b8a4e668453a7aaaf423af03bdf289fa308ea03a79332";	# Old 510
-use constant CHEAT_UNSAFE => "374708fff7719dd5979ec875d56cd2286f6d3cf7ec317a3b25632aab28ec37bb";
 
 # alarm(180);	# Nuke process after three minutes, in case of run-aways.
 
@@ -57,8 +66,11 @@ use constant SQUARE_H => 16;
 # Top-left square location (15,104)
 
 use constant SQUARE1X => 15;
-use constant SQUARE1Y => 104;
-# use constant SQUARE1Y => 115;
+
+use constant MIN_SQUARE1Y => 96;
+use constant MAX_SQAURE1Y => 115;
+
+my $Square1Y;
 
 my %char_for = (
         0            => 0,
@@ -74,6 +86,17 @@ my %char_for = (
         bomb         => "x",
         bomb_hilight => "X",
 	flag         => "*",
+);
+
+# 1 => Won, -1 => Lost, 0 => Still playing
+
+my %smiley_type = (
+    'd28bcc05d38fd736f6715388a12cb0b96da9852432669671ee7866135f35bbb7' =>  1,
+    'efef2037072c56fb029da1dd2cd626282173d0e1b2be39eab3e955cd2bcdc856' =>  1,
+    '08938969d349a6677a17a65a57f2887a85d1a7187dcd6c20d238e279a5ec3c18' => -1,
+    '7cf1797ad25730136aa67c0a039b0c596f1aed9de8720999145248c72df52d1b' => -1,
+    '56f7c05869d42918830e80ad5bf841109d88e17b38fc069c3e5bf19623a88711' =>  0,
+    '0955e50dda3f850913392d4e654f9ef45df046f063a4b8faeff530609b37379f' =>  0,
 );
 
 # old - Perl 5.8 and older ImageMagick
@@ -111,7 +134,7 @@ sub click {
     my($x,$y,$button)=@_;
     $button ||= "{LEFTCLICK}";
     MouseMoveAbsPix($x,$y);
-    print "Button: $button\n" if DEBUG;
+    print "Button: $button ($x,$y)\n" if DEBUG;
     SendMouse($button);
 }
 
@@ -136,7 +159,7 @@ sub capture_square {
     our($l,$t);
     my $image=CaptureRect(
         $l+SQUARE1X+($sx-1)*SQUARE_W,
-        $t+SQUARE1Y+($sy-1)*SQUARE_H,
+        $t+$Square1Y+($sy-1)*SQUARE_H,
         SQUARE_W,
         SQUARE_H);
     return $image;
@@ -147,6 +170,29 @@ sub capture_square {
 # Returns string value
 sub value {
     my($sx,$sy)=@_;
+
+
+    if (not $Square1Y) {
+	# We haven't calibrated our board yet.  Let's see if we can
+	# find a square we recognise.
+
+        CALIBRATION: {
+	    for (my $i = MIN_SQUARE1Y; $i <= MAX_SQAURE1Y; $i++) {
+	        $Square1Y = $i;
+
+	        warn "Trying to calibrate board $i pixels down\n" if DEBUG;
+
+	        my $sig = capture_square(1,1)->Get("signature");
+
+	        # Known signature, break out of calibration loop.
+	        last CALIBRATION if ($contents_of_square{$sig});
+	    }
+
+	# If we're here, we couldn't calibrate
+	die "Board calibration failed\n";
+        }
+    }
+
     my $sig=capture_square($sx,$sy)->Get("signature");
 
     my $result = $contents_of_square{$sig};
@@ -172,7 +218,7 @@ sub press {
     our($l,$t);
     click(
         $l+SQUARE1X+($sx-1)*SQUARE_W+SQUARE_W/2,
-        $t+SQUARE1Y+($sy-1)*SQUARE_H+SQUARE_W/2,
+        $t+$Square1Y+($sy-1)*SQUARE_H+SQUARE_W/2,
 	$button
     );
 }
@@ -219,29 +265,52 @@ sub game_over {
     # calculation using formula: x=w/2-11
     # Size is 26x26
     our($l,$t,$w);
+
+    # If we don't know where our smiley lives, then go find it.
+    if (not $Smiley_offset) {
+        for (my $i = MINIMUM_TOP_DRESSING; $i <= MAXIMUM_TOP_DRESSING; $i++) {
+
+	    $Smiley_offset = $i;
+
+            warn "Searching $Smiley_offset pixels down for smiley\n" if DEBUG;
+
+	    my $smiley = CaptureRect(
+		$l+$w/2 - 11,
+		$Smiley_offset + $t,
+		SMILEY_LENGTH,
+		SMILEY_LENGTH,
+	    );
+
+            my $sig = $smiley->Get('signature');
+
+	    if (exists $smiley_type{$sig}) {
+		return $smiley_type{$sig};
+	    }
+	}
+
+	# Oh no!  We couldn't find our smiley!
+
+	die "Smiley not found on gameboard!\n";
+    }
+
     # my $smiley=CaptureRect($l+$w/2-11,$t+56,26,26);
-    my $smiley=CaptureRect($l+$w/2-11,$t+64,26,26);
+    # my $smiley=CaptureRect($l+$w/2-11, $t+64, SMILEY_LENGTH, SMILEY_LENGTH);
     # my $smiley=CaptureRect($l+$w/2-11,$t+75,26,26);
+
+    my $smiley = CaptureRect(
+	$l+$w/2 - 11,
+	$Smiley_offset + $t,
+	SMILEY_LENGTH,
+	SMILEY_LENGTH,
+    );
+
 
     my $sig = $smiley->Get("signature");
 
     # (5.10 new smileys first, then 5.10 smileys, then 5.8)
     
-    if (
-	$sig eq "d28bcc05d38fd736f6715388a12cb0b96da9852432669671ee7866135f35bbb7" or
-	$sig eq "efef2037072c56fb029da1dd2cd626282173d0e1b2be39eab3e955cd2bcdc856") {
-        return 1;
-    }
-    elsif ($sig eq "08938969d349a6677a17a65a57f2887a85d1a7187dcd6c20d238e279a5ec3c18" or
-	   $sig eq "7cf1797ad25730136aa67c0a039b0c596f1aed9de8720999145248c72df52d1b") {
-        return -1;
-    }
-    # XXX - NB, the following is only a 5.10 new + 5.10 old smiley
-    elsif (
-	$sig eq "56f7c05869d42918830e80ad5bf841109d88e17b38fc069c3e5bf19623a88711" or
-
-	$sig eq "0955e50dda3f850913392d4e654f9ef45df046f063a4b8faeff530609b37379f") {
-	return 0; 
+    if (exists $smiley_type{$sig}) {
+	return $smiley_type{$sig};
     }
 
     die "I don't know what the smiley means\n$sig\n";
@@ -406,7 +475,7 @@ sub cheat_is_square_safe {
 	
 	MouseMoveAbsPix(
 		$l+SQUARE1X+($square->[0]-1)*SQUARE_W+SQUARE_W/2,
-		$t+SQUARE1Y+($square->[1]-1)*SQUARE_H+SQUARE_W/2,
+		$t+$Square1Y+($square->[1]-1)*SQUARE_H+SQUARE_W/2,
 	);
 
 	# Capture our pixel.

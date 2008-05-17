@@ -7,6 +7,12 @@ print "SweeperBot, Copyright 2005-2008 Paul Fenwick <pjf\@cpan.org>\n";
 print "Based upon code Copyright 2005 Matt Sparks <root\@f0rked.com>\n";
 print "\n";
 
+END {
+	print "Program terminated.  Press enter to continue.\n";
+	<STDIN>;
+}
+
+
 # Start Minesweeper.
 
 package App::SweeperBot;
@@ -40,8 +46,14 @@ while (1) {
 	# left side: 15px, right side: 11px
 	# bottom is 11px tall
 
+	# XXX - These constants are bogus, and depend upon the windowing
+	# style used.
 	# our($squares_x,$squares_y)=(($w-15-11)/SQUARE_W,($h-96-11)/SQUARE_H);
 	our($squares_x,$squares_y)=(($w-15-11)/SQUARE_W,($h-104-11)/SQUARE_H);
+
+	# Round up squares_y
+	$squares_y = int ($squares_y + 0.9);
+
 	our $squares=$squares_x*$squares_y;
 
 	# Demo the program
