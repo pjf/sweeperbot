@@ -4,9 +4,6 @@ MakeExe.pl
 Makefile.PL
 README
 SweeperBot.exe
-inc
-inc/Module
-inc/Module/Install
 inc/Module/Install.pm
 inc/Module/Install/Base.pm
 inc/Module/Install/Can.pm
