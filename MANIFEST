@@ -7,4 +7,4 @@ t/00-load.t
 t/pod-coverage.t
 t/pod.t
 MakeExe.pl
-sweep.exe
+SweeperBot.exe

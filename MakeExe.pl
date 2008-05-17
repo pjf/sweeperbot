@@ -2,7 +2,7 @@
 use strict;
 use IPC::System::Simple qw(run);
 
-my $output = q{sweep.exe};
+my $output = q{SweeperBot.exe};
 my $input  = q{bin\sweeperbot.pl};
 
 my @dlls = qw(

@@ -23,10 +23,15 @@ package App::SweeperBot;
 
 use strict;
 use warnings;
+
+use 5.006;
+
+our $VERSION = '0.01';
+
 use Scalar::Util qw(looks_like_number);
 use Win32::Process qw(NORMAL_PRIORITY_CLASS);
 
-use constant DEBUG => 1;
+use constant DEBUG => 0;
 use constant CHEAT => 1;
 use constant UBER_CHEAT => 0;
 
@@ -494,3 +499,49 @@ sub cheat_is_square_safe {
 	} 
 	die "Square @$square has unknown cheat-signature\n$signature\n";
 }
+
+__END__
+
+=head1 NAME
+
+App::SweeperBot - Play windows minesweeper, automatically!
+
+=head1 SYNOPSIS
+
+	C:\Path\To\Distribution> SweeperBot.exe
+
+=head1 DESCRIPTION
+
+This is alpha code, and released for testing and demonstration
+purposes only.  It is still under active development.
+
+An updated release is due on or before the 24th May, 2008.
+
+Using this code for playing minesweeper on a production basis is
+strongly discouraged.
+
+=head1 BUGS
+
+Plenty.  The code is pretty awful right now.  Anything that could go
+wrong probably will.
+
+Use of this program may cause sweeperbot to take control of our
+mouse and keyboard, playing minesweeper endlessly for days on end,
+and forcing the user to go and do something productive instead.
+
+=head1 AUTHOR
+
+Paul Fenwick E<lt>pjf@cpan.orgE<gt>
+
+=head1 COPYRIGHT AND LICENSE
+
+Copyright (C) 2005-2008 by Paul Fenwick, E<lt>pjf@cpan.orgE<gt>
+
+Based upon original code Copyright (C) 2005 by 
+Matt Sparks E<lt>root@f0rked.comE<lt>
+
+This application is free software; you can redistribute it and/or
+modify it under the same terms as Perl itself, either Perl version 5.6.0
+or, at your option, any later version of Perl 5 you may have available.
+
+=cut
