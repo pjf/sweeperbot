@@ -26,7 +26,7 @@ use warnings;
 
 use 5.006;
 
-our $VERSION = '0.01';
+our $VERSION = '0.02';
 
 use Scalar::Util qw(looks_like_number);
 use Win32::Process qw(NORMAL_PRIORITY_CLASS);

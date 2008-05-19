@@ -1,6 +1,8 @@
 #!/usr/bin/perl -w
 use strict;
+use lib 'lib';
 use IPC::System::Simple qw(run);
+require App::SweeperBot;
 
 my $output = q{SweeperBot.exe};
 my $input  = q{bin\sweeperbot.pl};
@@ -18,6 +20,14 @@ my @dlls = qw(
 	X11
 );
 
+my @info = (
+	qq{FileVersion=$App::SweeperBot::VERSION},
+	qq{FileDescription="Play minesweeper automatically"},
+	qq{LegalCopyright="May be distributed or modified under the terms of Perl 5"},
+);
+
+	
+
 my $magick_path = q{c:\perl\site\lib\auto\Image\Magick};
 
 foreach my $dll (@dlls) {
@@ -27,6 +37,7 @@ foreach my $dll (@dlls) {
 run(
 	q{pp.bat},'-o', $output, '-I=lib',
 	( map { "-l=$magick_path\\$_.dll" } @dlls),
+	'-N', join(";",@info),
 	$input
 );
 
