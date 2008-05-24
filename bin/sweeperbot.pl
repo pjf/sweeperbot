@@ -12,31 +12,32 @@ END {
 	<STDIN>;
 }
 
+my $bot = App::SweeperBot->new;
 
 # Start Minesweeper.
 
-App::SweeperBot->spawn_minesweeper();
+$bot->spawn_minesweeper;
 
-sleep(2);
+sleep(2);	# Wait for game to start
 
-App::SweeperBot->locate_minesweeper();
-App::SweeperBot->enable_cheats() if App::SweeperBot::CHEAT;
+$bot->locate_minesweeper;
+$bot->enable_cheats if App::SweeperBot::CHEAT;
 
 while (1) {
 
 	print "Starting a new game\n";
-	App::SweeperBot->new_game();
+	$bot->new_game();
 
 	while(1) {
 
-	    if (my $state = App::SweeperBot->game_over) {
+	    if (my $state = $bot->game_over) {
 		print "Game over!  ", $state > 0 ? "We won!\n" : "We lost!\n";
 		last;
 	    }
 
-	    my $game_state = App::SweeperBot->capture_game_state();
+	    my $game_state = $bot->capture_game_state();
 
-	    App::SweeperBot->make_move($game_state);
+	    $bot->make_move($game_state);
 	}
 
 	print "Waiting 5 seconds before next game\n";

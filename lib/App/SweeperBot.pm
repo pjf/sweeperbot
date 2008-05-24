@@ -7,8 +7,9 @@ package App::SweeperBot;
 #   ppm> install Win32-GuiTest
 #   ppm> install http://theoryx5.uwinnipeg.ca/ppms/Win32-Screenshot.ppd
 #
-# Windows versions of ImageMagick (which also install PerlMagick) can be located
-# at http://imagemagick.org/script/binary-releases.php
+# The version of Image-Magick used by this code can be found at
+# http://www.bribes.org/perl/ppmdir.html .  Different ImageMagick
+# distributions may result in different signature codes.
 #
 # 20050726, Matt Sparks (f0rked), http://f0rked.com
 
@@ -28,11 +29,14 @@ purposes only.  It is still under active development.
 Using this code for playing minesweeper on a production basis is
 strongly discouraged.
 
+=head1 METHODS
+
 =cut
 
 use strict;
 use warnings;
 use Carp;
+use NEXT;
 
 use 5.006;
 
@@ -87,6 +91,9 @@ use constant SQUARE1X => 15;
 use constant MIN_SQUARE1Y => 96;
 use constant MAX_SQAURE1Y => 115;
 
+# How far left of the smiley to click to focus on the board.
+use constant FOCUS_X_OFFSET => 50;
+
 my $Square1Y;
 
 my %char_for = (
@@ -116,8 +123,11 @@ my %smiley_type = (
     '0955e50dda3f850913392d4e654f9ef45df046f063a4b8faeff530609b37379f' =>  0,
 );
 
-# old - Perl 5.8 and older ImageMagick
-# new - Perl 5.10 and new ImageMagick
+# old - Bribes distro ImageMagick
+# new - "Official" ImageMagick
+# NB: This code is primarily tested under the bribes distribution of
+# ImageMagick, because it plays nicely with PAR.  YMMV with other
+# versions.
 
 my %contents_of_square = (
         "0b6f3e019208789db304a8a8c8bd509dacf62050a962ae9a0385733d6b595427" => 0,           # old
@@ -144,6 +154,30 @@ my %contents_of_square = (
 	"e4305b6c2c750ebf0869a465f5e4f7721107bf066872edbcacd15c399ae60bff" => "flag",      # old
 	"645d48aa778b2ac881a3921f3044a8ed96b8029915d9b300abbe91bef3427784" => "flag",      # new
 );
+
+=head2 new
+
+	my $sweperbot = App::SweeperBot->new;
+
+Creates a new C<App::SweeperBot> object.  Does not use any
+arguments passed, but will send them verbatim to an C<_init>
+method if defined on a child class.
+
+=cut
+
+sub new {
+	my ($class, @args) = @_;
+
+	my $this = {};
+
+	bless($this, $class);
+
+	$this->EVERY::LAST::_init(@args);
+
+	return $this;
+}
+
+
 
 =head2 spawn_minesweeper
 
@@ -187,6 +221,8 @@ failure.
 =cut
 
 sub locate_minesweeper {
+	my ($this) = @_;
+
 	our $id=(FindWindowLike(0, "^Minesweeper"))[0];
         our($l,$t,$r,$b)=GetWindowRect($id);
         our($w,$h)=($r-$l,$b-$t);
@@ -214,19 +250,34 @@ sub locate_minesweeper {
         print "$squares_x across, $squares_y down, $squares total\n" if VERBOSE;
 
         print "Focusing on the window\n" if VERBOSE;
-        focus();
+        $this->focus();
 
 	return $id;
 }
 
+=head2 click
+
+	$sweeperbot->click($x,$y,$button);
+
+Clicks on ($x,$y) as an I<absolute> position on the screen.
+C<$button> is any button as understood by L<Win32::GuiTest>,
+usually C<{LEFTCLICK}>, C<{MIDDLECLICK}> or C<{RIGHTCLICK}>.
+
+If not specified, C<$button> defaults to a left-click.
+
+Returns nothing.
+
+=cut
+
 # Click the left button of the mouse.
 # Arguments: x, y as ABSOLUTE positions on the screen
 sub click {
-    my($x,$y,$button)=@_;
+    my($this, $x,$y,$button)=@_;
     $button ||= "{LEFTCLICK}";
     MouseMoveAbsPix($x,$y);
     print "Button: $button ($x,$y)\n" if DEBUG;
     SendMouse($button);
+    return;
 }
 
 =head2 new_game
@@ -248,38 +299,93 @@ has been successfully started.
 # click on it.
 
 sub new_game {
+    my ($this) = @_;
     our ($reset_x,$reset_y);
-    click($reset_x,$reset_y);
+    $this->click($reset_x,$reset_y);
     return;
 }
+
+=head2 focus
+
+	$sweeperbot->focus;
+
+Focuses on t he  minesweeper window by clicking a little left of the
+smiley.  Does not check for success.  Returns nothing.
+
+=cut
 
 # Focus on the Minesweeper window by clicking a little to the left of the game
 # button.
 sub focus {
+    my ($this) = @_;
     our ($reset_x, $reset_y);
-    click($reset_x-50,$reset_y);
+    $this->click($reset_x - FOCUS_X_OFFSET ,$reset_y);
+    return;
 }
 
-# Get an image capture of a single field.
-# Arguments: sx, sy where 1,1 is the top left field in the grid.
-# Returns Image::Magick object
+=head2 capture_square
+
+	my $image = $sweeperbot->capture_square($x,$y);
+
+Captures the square ($x,$y) of the minesweeper board.  (1,1) is
+the top-left of the grid.  No checking is done to see if the square
+is actually on the board.  Returns the image as an L<Image::Magick>
+object.
+
+=head3 Bugs in capture_square
+
+On failure to capture the image, this returns an empty
+L<Image::Magick> object.  This is considered a bug; in the future
+C<capture_square> will throw an exception on error.
+
+C<capture_square> depends upon calibration routines that are
+currently implemented in the L</value> method; calling it before
+the first call to L</value> can result in incorrect or inconsistent
+results.  In future releases C<capture_square> will automatically
+calibrate itself if required.
+
+=cut
+
+# TODO GuiTest doesn't check the Image::Magick return codes, it
+# just assumes everything works.  We should consider writing our
+# own code that _does_ test, since these diagnostics are very
+# useful when things go wrong.
+
 sub capture_square {
-    my($sx,$sy)=@_;
+    my($this, $sx,$sy)=@_;
     our($l,$t);
     my $image=CaptureRect(
         $l+SQUARE1X+($sx-1)*SQUARE_W,
         $t+$Square1Y+($sy-1)*SQUARE_H,
         SQUARE_W,
-        SQUARE_H);
+        SQUARE_H
+    );
     return $image;
 }
 
-# Determine the value of a single field
-# Arguments: sx, sy
-# Returns string value
-sub value {
-    my($sx,$sy)=@_;
+=head2 value
 
+	my $value = $sweeperbot->value($x,$y);
+
+Returns the value in position ($x,$y) of the board, square
+(1,1) is considered the top-left of the grid.  Possible values
+are given below:
+
+	0-8		# Number of adjacent mines (0 = empty)
+	bomb		# A bomb (only when game lost)
+	bomb_hilight	# The bomb we hit (only when game lost)
+	flag		# A flag
+	unpressed	# An unpressed square
+
+Support of question-marks is not provided, but may be included
+in a future version.
+
+Throws an exception on failure.
+
+=cut
+
+sub value {
+    my($this, $sx,$sy)=@_;
 
     if (not $Square1Y) {
 	# We haven't calibrated our board yet.  Let's see if we can
@@ -291,7 +397,7 @@ sub value {
 
 	        warn "Trying to calibrate board $i pixels down\n" if DEBUG;
 
-	        my $sig = capture_square(1,1)->Get("signature");
+	        my $sig = $this->capture_square(1,1)->Get("signature");
 
 	        # Known signature, break out of calibration loop.
 	        last CALIBRATION if ($contents_of_square{$sig});
@@ -302,7 +408,7 @@ sub value {
         }
     }
 
-    my $sig=capture_square($sx,$sy)->Get("signature");
+    my $sig = $this-> capture_square($sx,$sy)->Get("signature");
 
     my $result = $contents_of_square{$sig};
 
@@ -311,60 +417,112 @@ sub value {
     return $result;
 }
 
-# Find the signature of a square. This probably shouldn't be used since all (?)
-# of the signatures have already been determined.
-sub sig {
-    my($sx,$sy)=@_;
-    my $im=capture_square($sx,$sy);
-    return $im->Get("signature");
-}
+=head2 press
 
-# Click on a field.
-# Arguments: sx, sy
+	$sweeperbot->press($x,$y, $button)
+
+Clicks on the square with co-ordinates ($x,$y) using the mouse-button
+C<$button>, or left-click by default.  Square (1,1)
+is the top-left square.  Does not return a value.
+
+=cut
+
 sub press {
-    my($sx,$sy,$button)=@_;
+    my($this, $sx,$sy,$button)=@_;
     $button ||= "{LEFTCLICK}";
     our($l,$t);
-    click(
+    $this->click(
         $l+SQUARE1X+($sx-1)*SQUARE_W+SQUARE_W/2,
         $t+$Square1Y+($sy-1)*SQUARE_H+SQUARE_W/2,
 	$button
     );
+
+    return;
 }
+
+=head2 stomp
+
+	$sweeperbot->stomp($x,$y);
+
+Stomps (middle-clicks) on the square at ($x,$y), normally used to
+stand on all squares adjacent to the square specified.  Square (1,1)
+is the top-left of the grid.  Does not return a value.
+
+=cut
 
 # Stomp on a square (left+right click)
 sub stomp {
-	press(@_,"{MIDDLECLICK}");
+	my ($this, $x, $y) = @_;
+	$this->press($x,$y,"{MIDDLECLICK}");
+
+	return;
 }
 
+=head2 flag_mines
+
+	$sweeperbot->flag_mines($game_state,
+		[2,3], [7,1], [8,3]
+	);
+
+Takes a game state, and a list of location tuples (array-refs),
+and marks all of those locations with flags.
+
+The requirement to pass C<$game_state> may be removed in a
+future version.
+
+=cut
+
 sub flag_mines {
-	my $game_state = shift;
-	foreach my $square (@_) {
+	my ($this, $game_state, @flag_these) = @_;
+
+	foreach my $square (@flag_these) {
 		my ($x,$y) = @$square;
 
 		# Skip to the next square if we have record that this
 		# has already been flagged (earlier this iteration).
 		next if $game_state->[$x][$y] eq "flag";
 
-		press($x,$y,"{RIGHTCLICK}");
+		$this->press($x,$y,"{RIGHTCLICK}");
 		$game_state->[$x][$y] = "flag";
 	}
+
+	return;
 }
+
+=begin deprecated
+
+# This code is left here as a mathom, but isn't used anymore.
+# Generally we want to call flag_mines() to flag mines, or
+# stomp() to stomp on a square.
 
 sub mark_adjacent {
-	my ($x, $y) = @_;
-	press($x-1,$y-1,"{RIGHTCLICK}");
-	press($x  ,$y-1,"{RIGHTCLICK}");
-	press($x+1,$y-1,"{RIGHTCLICK}");
+	my ($this, $x, $y) = @_;
+	$this->press($x-1,$y-1,"{RIGHTCLICK}");
+	$this->press($x  ,$y-1,"{RIGHTCLICK}");
+	$this->press($x+1,$y-1,"{RIGHTCLICK}");
 
-	press($x-1,$y  ,"{RIGHTCLICK}");
-	press($x+1,$y  ,"{RIGHTCLICK}");
+	$this->press($x-1,$y  ,"{RIGHTCLICK}");
+	$this->press($x+1,$y  ,"{RIGHTCLICK}");
 
-	press($x-1,$y+1,"{RIGHTCLICK}");
-	press($x  ,$y+1,"{RIGHTCLICK}");
-	press($x+1,$y+1,"{RIGHTCLICK}");
+	$this->press($x-1,$y+1,"{RIGHTCLICK}");
+	$this->press($x  ,$y+1,"{RIGHTCLICK}");
+	$this->press($x+1,$y+1,"{RIGHTCLICK}");
 
 }
+
+=end deprecated
+
+=head2 game_over
+
+	if (my $state = $sweeperbot->game_over) {
+		print $state > 0 ? "We won!\n" : "We lost!\n";
+	}
+
+Checks to see if the game is over by looking at the minesweeper smiley.
+Returns C<1> for game over due to a win, C<-1> for game over due to
+a loss, and false if the game has not finished.
+
+=cut
 
 # Is the game over (we hit a mine)? 
 # Returns -1 if game is over and we lost, 0 if not over, 1 if over and we won
@@ -416,8 +574,6 @@ sub game_over {
 
     my $sig = $smiley->Get("signature");
 
-    # (5.10 new smileys first, then 5.10 smileys, then 5.8)
-    
     if (exists $smiley_type{$sig}) {
 	return $smiley_type{$sig};
     }
@@ -425,6 +581,42 @@ sub game_over {
     die "I don't know what the smiley means\n$sig\n";
 
 }
+
+=head2 make_move
+
+
+	$sweeperbot->make_move($game_state);
+
+Given a game state, determines the next move(s) that should be made,
+and makes them.  By default this uses a very simple process:
+
+=over
+
+=item *
+
+If C<UBER_CHEAT> is set, then cheat.
+
+=item *
+
+If we find a square where the number of adjacent mines matches the
+number on the square, L</stomp> on it.
+
+=item *
+
+If the number of adjacent unpressed squares matches the number of 
+unknown adjacent mines, then flag them as mines.
+
+=item * 
+
+If all else fails, pick a square at random.  If C<CHEAT> is defined,
+and we would have picked a square with a mine, then pick another.
+
+=back
+
+If you want to inherit from this class to change the AI, overriding
+this method is the place to do it.
+
+=cut
 
 sub make_move {
 	my ($this, $game_state) = @_;
@@ -435,10 +627,10 @@ sub make_move {
 
 			if (UBER_CHEAT) {
 				if (cheat_is_square_safe([$x,$y])) {
-					press($x,$y);
+					$this->press($x,$y);
 				}
 				else {
-					flag_mines($game_state,[$x,$y]);
+					$this->flag_mines($game_state,[$x,$y]);
 				}
 				$altered_board = 1;
 			}
@@ -449,19 +641,19 @@ sub make_move {
 			# Unpressed/flag squares don't give us any information.
 			next SQUARE if (not looks_like_number($game_state->[$x][$y]));
 
-			my @adjacent_unpressed = adjacent_unpressed_for($game_state,$x,$y);
+			my @adjacent_unpressed = $this->adjacent_unpressed_for($game_state,$x,$y);
 			# If there are no adjacent unpressed squares, then
 			# this square is boring.
 			next SQUARE if not @adjacent_unpressed;
 
-			my $adjacent_mines = adjacent_mines_for($game_state,$x,$y);
+			my $adjacent_mines = $this->adjacent_mines_for($game_state,$x,$y);
 
 			# If the number of mines is equal to the number
 			# on this square, then stomp on it.
 			
 			if ($adjacent_mines == $game_state->[$x][$y]) {
 				print "Stomping on $x,$y\n" if DEBUG;
-				stomp($x,$y);
+				$this->stomp($x,$y);
 				$altered_board = 1;
 			}
 
@@ -470,7 +662,7 @@ sub make_move {
 			# adjacent squares as having mines.
 			if ($adjacent_mines + @adjacent_unpressed == $game_state->[$x][$y]) {
 				print "Marking mines next to $x,$y\n" if DEBUG;
-				flag_mines($game_state,@adjacent_unpressed);
+				$this->flag_mines($game_state,@adjacent_unpressed);
 				$altered_board = 1;
 			}
 			
@@ -491,25 +683,42 @@ sub make_move {
 		my $square = $unpressed[rand @unpressed];
 
 		if (CHEAT) {
-			while (not cheat_is_square_safe($square)) {
+			while (not $this->cheat_is_square_safe($square)) {
 				$square = $unpressed[rand @unpressed];
 			}
 		}
 
 		print "Guessing square ",join(",",@$square),"\n" if DEBUG;
-		press(@$square);
+		$this->press(@$square);
 
 	}
 	return;
 }
 
+=head2 capture_game_state
+
+	my $game_state = $sweeperbot->capture_game_state;
+
+Walks over the entire board, capturing the value in each location and
+adding it to an array-of-arrays (game-state) structure.  The value
+in a particular square can be accessed with:
+
+	$value = $game_state->[$x][$y];
+
+Where (1,1) is considered the top-left of the game board.
+
+=cut
+
 sub capture_game_state {
+
+	my ($this) = @_;
+
 	my $game_state = [];
 	our ($squares_x, $squares_y);
 
 	for my $y (1..$squares_y) {
     		for my $x (1..$squares_x) {
-			my $square_value = value($x,$y);
+			my $square_value = $this->value($x,$y);
 			$game_state->[$x][$y] = $square_value;
 			print $char_for{$square_value} if DEBUG;
 		}
@@ -533,26 +742,57 @@ sub capture_game_state {
 	return $game_state;
 }
 
+=head2 adjacent_mines_for
+
+	my $mines = $sweeperbot->adjacent_mines_for($game_state, $x, $y);
+
+Examines all the squares adjacent to ($x,$y) and returns an
+array-ref of tuples for those that have already been flagged
+as a mine.
+
+=cut
+
 sub adjacent_mines_for {
-	my ($game_state,$x,$y) = @_;
-	return mines_at($game_state,
+	my ($this, $game_state, $x, $y) = @_;
+	return $this->mines_at($game_state,
 		[$x-1, $y-1],   [$x, $y-1],   [$x+1, $y-1],
 		[$x-1, $y  ],                 [$x+1, $y  ],
 		[$x-1, $y+1],   [$x, $y+1],   [$x+1, $y+1],
 	);
 }
+
+=head2 adjacent_unpressed_for
+
+	my $squares = $sweeperbot->adjacent_unpressed_for($game_state, $x, $y);
+
+Examines all the squares adjacent to ($x,$y) and returns an array-ref
+of tuples for those that have not been pressed (and not flagged as a
+mine).
+
+=cut
 
 sub adjacent_unpressed_for {
-	my ($game_state, $x, $y) = @_;
-	return unpressed_list($game_state,
+	my ($this, $game_state, $x, $y) = @_;
+	return $this->unpressed_list($game_state,
 		[$x-1, $y-1],   [$x, $y-1],   [$x+1, $y-1],
 		[$x-1, $y  ],                 [$x+1, $y  ],
 		[$x-1, $y+1],   [$x, $y+1],   [$x+1, $y+1],
 	);
 }
 
+=head2 mines_at
+
+	my $mines = $sweeperbot->mines_at($game_state, @locations);
+
+Takes a game state and a list of locations, and returns an array-ref
+containing those locations from the list that have been flagged as
+a mine.
+
+=cut
+
+
 sub mines_at {
-	my ($game_state, @locations) = @_;
+	my ($this, $game_state, @locations) = @_;
 
 	my $mines = 0;
 
@@ -564,22 +804,62 @@ sub mines_at {
 	return $mines;
 }
 
+=head2 unpressed_list
+
+	my $unpressed = $this->unpressed-list($game_state, @locations);
+
+Identical to L</mines_at> above, but returns any locations that have
+not been pressed (and not flagged as a mine).
+
+=cut
+
 sub unpressed_list {
-	my ($game_state, @locations) = @_;
+	my ($this, $game_state, @locations) = @_;
 
 	my @unpressed = grep { ($game_state->[ $_->[0] ][ $_->[1] ] eq "unpressed") } @locations;
 
 	return @unpressed;
 }
 
-# Technically this should end with a "left-shift", but shift-space seems to work.
+=head2 enable_cheats
+
+	$sweeperbot->enable_cheats;
+
+Sends the magic C<xyzzy> cheat to minesweeper, which allows us to
+determine the contents of a square by examining the top-left pixel
+of the entire display.
+
+For this cheat to be used in the default AI, the C<CHEAT> constant
+must be set to a true value in the C<App::SweeperBot> source.
+
+=cut
 
 sub enable_cheats {
 	SendKeys("xyzzy{ENTER}+ ");
+
+	return;
 }
 
+=head2 cheat_is_square_safe
+
+	if ($sweeperbot->cheat_is_square_safe($x,$y) {
+		print "($x,$y) looks safe!\n";
+	} else {
+		print "($x,$y) has a mine underneath.\n";
+	}
+
+If cheats are enabled, returns true if the given square looks
+safe to step on, or false if it appears to contain a mine.
+
+Note that especially on fast, multi-core systems, it's possible
+for this to move the mouse and capture the required pixel before
+minesweeper has had a chance to update it.  So if you cheat,
+you may sometimes be surprised.
+
+=cut
+
 sub cheat_is_square_safe {
-	my ($square) = @_;
+	my ($this, $square) = @_;
 	our($l,$t);
 	
 	MouseMoveAbsPix(
@@ -615,6 +895,10 @@ Use of this program may cause sweeperbot to take control of our
 mouse and keyboard, playing minesweeper endlessly for days on end,
 and forcing the user to go and do something productive instead.
 
+All methods that require a game-state to be passed will be modified
+in the future to be usable without the game-state.  The
+C<App::SweeperBot> object itself should be able to retain state.
+
 =head1 AUTHOR
 
 Paul Fenwick E<lt>pjf@cpan.orgE<gt>
@@ -624,7 +908,7 @@ Paul Fenwick E<lt>pjf@cpan.orgE<gt>
 Copyright (C) 2005-2008 by Paul Fenwick, E<lt>pjf@cpan.orgE<gt>
 
 Based upon original code Copyright (C) 2005 by 
-Matt Sparks E<lt>root@f0rked.comE<lt>
+Matt Sparks E<lt>root@f0rked.comE<gt>
 
 This application is free software; you can redistribute it and/or
 modify it under the same terms as Perl itself, either Perl version 5.6.0
