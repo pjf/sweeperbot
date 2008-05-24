@@ -13,3 +13,4 @@ Revision history for App-SweeperBot
 	- Made sweeperbot.pl a thinner shell.
 	- It should be possible to cleanly inherit from App::SweeperBot
 	  and replace just the AI.
+	- MakeExe.pl now selects the best possible compression.
