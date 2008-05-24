@@ -1,15 +1,6 @@
 package App::SweeperBot;
 
 # minesweeper.pl
-# This is a program to manipulate a win32 minesweeper window. So far it can
-# determine a value of a square, click squares, find the size of the grid,
-# determine if the game is over, and start a new game.
-#
-# The original intent of this program was to beat minesweeper automatically,
-# but after writing the framework, I decided that I would rather not code
-# the algorithm portion. Thus, I'm releasing it in hopes that someone does
-# finish the program. If you complete my work, please send me a copy, I'd like
-# to see it. root@f0rked.com
 #
 # Win32::Screenshot, Win32::GuiTest, and Image::Magick are needed for this
 # program. Use ActivePerl's PPM to install the first two:
@@ -21,8 +12,27 @@ package App::SweeperBot;
 #
 # 20050726, Matt Sparks (f0rked), http://f0rked.com
 
+=head1 NAME
+
+App::SweeperBot - Play windows minesweeper, automatically!
+
+=head1 SYNOPSIS
+
+	C:\Path\To\Distribution> SweeperBot.exe
+
+=head1 DESCRIPTION
+
+This is alpha code, and released for testing and demonstration
+purposes only.  It is still under active development.
+
+Using this code for playing minesweeper on a production basis is
+strongly discouraged.
+
+=cut
+
 use strict;
 use warnings;
+use Carp;
 
 use 5.006;
 
@@ -132,6 +142,33 @@ my %contents_of_square = (
 	"e4305b6c2c750ebf0869a465f5e4f7721107bf066872edbcacd15c399ae60bff" => "flag",      # old
 	"645d48aa778b2ac881a3921f3044a8ed96b8029915d9b300abbe91bef3427784" => "flag",      # new
 );
+
+=head2 spawn_minesweeper
+
+	$sweeperbot->spawn_minesweeper;
+
+Attempts to spawn a new minesweeper instance.  Returns the
+C<Win32::Process> object on success, or throws an exception
+on error.
+
+=cut
+
+sub spawn_minesweeper {
+
+    Win32::Process::Create(
+	    my $minesweeper,
+	    "$ENV{SystemRoot}\\system32\\winmine.exe",
+	    "",
+	    0,
+	    NORMAL_PRIORITY_CLASS,
+	    "."
+    ) or croak "Cannot spawn minesweeper! - ". 
+        Win32::FormatError(Win32::GetLastError());
+
+    return $minesweeper;
+
+}
+
 
 # Click the left button of the mouse.
 # Arguments: x, y as ABSOLUTE positions on the screen
@@ -502,24 +539,6 @@ sub cheat_is_square_safe {
 
 __END__
 
-=head1 NAME
-
-App::SweeperBot - Play windows minesweeper, automatically!
-
-=head1 SYNOPSIS
-
-	C:\Path\To\Distribution> SweeperBot.exe
-
-=head1 DESCRIPTION
-
-This is alpha code, and released for testing and demonstration
-purposes only.  It is still under active development.
-
-An updated release is due on or before the 24th May, 2008.
-
-Using this code for playing minesweeper on a production basis is
-strongly discouraged.
-
 =head1 BUGS
 
 Plenty.  The code is pretty awful right now.  Anything that could go
@@ -545,3 +564,4 @@ modify it under the same terms as Perl itself, either Perl version 5.6.0
 or, at your option, any later version of Perl 5 you may have available.
 
 =cut
+

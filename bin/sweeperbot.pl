@@ -15,18 +15,9 @@ END {
 
 # Start Minesweeper.
 
+App::SweeperBot->spawn_minesweeper();
+
 package App::SweeperBot;
-
-Win32::Process::Create(
-	my $minesweeper,
-	"$ENV{SystemRoot}\\system32\\winmine.exe",
-	"",
-	0,
-	NORMAL_PRIORITY_CLASS,
-	"."
-) or die "Cannot spawn minesweeper! - ".Win32::GetLastError();
-
-print "Minesweeper spawned.  Starting game in five seconds...\n";
 
 sleep(5);
 
