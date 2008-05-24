@@ -38,6 +38,7 @@ run(
 	q{pp.bat},'-o', $output, '-I=lib',
 	( map { "-l=$magick_path\\$_.dll" } @dlls),
 	'-N', join(";",@info),
+	qw(-z 9),
 	$input
 );
 
