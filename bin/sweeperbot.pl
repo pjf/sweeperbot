@@ -17,54 +17,26 @@ END {
 
 App::SweeperBot->spawn_minesweeper();
 
-package App::SweeperBot;
+sleep(2);
 
-sleep(5);
-
-enable_cheats() if CHEAT;
+App::SweeperBot->locate_minesweeper();
+App::SweeperBot->enable_cheats() if App::SweeperBot::CHEAT;
 
 while (1) {
 
-	# About the window
-	our $id=(FindWindowLike(0, "^Minesweeper"))[0];
-	our($l,$t,$r,$b)=GetWindowRect($id);
-	our($w,$h)=($r-$l,$b-$t);
-	# our($reset_x,$reset_y)=($l+$w/2,$t+70);
-	our($reset_x,$reset_y)=($l+$w/2,$t+81);
-
-	# Figure out our total number of squares
-	# "header" of window is 96px tall
-	# left side: 15px, right side: 11px
-	# bottom is 11px tall
-
-	# XXX - These constants are bogus, and depend upon the windowing
-	# style used.
-	# our($squares_x,$squares_y)=(($w-15-11)/SQUARE_W,($h-96-11)/SQUARE_H);
-	our($squares_x,$squares_y)=(($w-15-11)/SQUARE_W,($h-104-11)/SQUARE_H);
-
-	# Round up squares_y
-	$squares_y = int ($squares_y + 0.9);
-
-	our $squares=$squares_x*$squares_y;
-
-	# Demo the program
-	print "Width: $w, height: $h\n";
-	print "$squares_x across, $squares_y down, $squares total\n";
-
-	print "Focusing on the window\n";
-	focus();
-
 	print "Starting a new game\n";
-	new_game();
+	App::SweeperBot->new_game();
 
-	TURN: while(1) {
-	    my $go=game_over;
-	    if ($go==1) { print "Game is over, we won.\n"; last; }
-	    elsif ($go==-1) { print "Game is over, we lost.\n"; last; } 
+	while(1) {
 
-	    my $game_state = capture_game_state();
+	    if (my $state = App::SweeperBot->game_over) {
+		print "Game over!  ", $state > 0 ? "We won!\n" : "We lost!\n";
+		last;
+	    }
 
-	    make_move($game_state);
+	    my $game_state = App::SweeperBot->capture_game_state();
+
+	    App::SweeperBot->make_move($game_state);
 	}
 
 	print "Waiting 5 seconds before next game\n";

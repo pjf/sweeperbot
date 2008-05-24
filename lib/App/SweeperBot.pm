@@ -42,6 +42,7 @@ use Scalar::Util qw(looks_like_number);
 use Win32::Process qw(NORMAL_PRIORITY_CLASS);
 
 use constant DEBUG => 0;
+use constant VERBOSE => 0;
 use constant CHEAT => 1;
 use constant UBER_CHEAT => 0;
 
@@ -65,6 +66,7 @@ use constant CHEAT_UNSAFE  => "374708fff7719dd5979ec875d56cd2286f6d3cf7ec317a3b2
 # alarm(180);	# Nuke process after three minutes, in case of run-aways.
 
 use Win32::Screenshot;
+
 use Win32::GuiTest qw(
     FindWindowLike
     GetWindowRect
@@ -169,6 +171,53 @@ sub spawn_minesweeper {
 
 }
 
+=head2 locate_minesweeper
+
+	$sweeperbot->locate_minesweeper;
+
+Locates the first minesweeper window that can be found, brings
+it into focus, and sets relevant state so that it can be
+acessed later.  Must be used before a game can be started
+or played.  Should be used if the minesweeper window
+changes size or position.
+
+Returns the window ID on success.  Throws an exception on
+failure.
+
+=cut
+
+sub locate_minesweeper {
+	our $id=(FindWindowLike(0, "^Minesweeper"))[0];
+        our($l,$t,$r,$b)=GetWindowRect($id);
+        our($w,$h)=($r-$l,$b-$t);
+        # our($reset_x,$reset_y)=($l+$w/2,$t+70);
+        our($reset_x,$reset_y)=($l+$w/2,$t+81);
+
+        # Figure out our total number of squares
+        # "header" of window is 96px tall
+        # left side: 15px, right side: 11px
+        # bottom is 11px tall
+
+        # TODO - These constants are bogus, and depend upon the windowing
+        # style used.
+        # our($squares_x,$squares_y)=(($w-15-11)/SQUARE_W,($h-96-11)/SQUARE_H);
+        our($squares_x,$squares_y)=(($w-15-11)/SQUARE_W,($h-104-11)/SQUARE_H);
+
+        # Round up squares_y.  TODO: This is a kludge to deal with
+	# different window decorations.
+        $squares_y = int ($squares_y + 0.9);
+
+        our $squares=$squares_x*$squares_y;
+
+        # Display status information
+        print "Width: $w, height: $h\n" if VERBOSE;
+        print "$squares_x across, $squares_y down, $squares total\n" if VERBOSE;
+
+        print "Focusing on the window\n" if VERBOSE;
+        focus();
+
+	return $id;
+}
 
 # Click the left button of the mouse.
 # Arguments: x, y as ABSOLUTE positions on the screen
@@ -180,10 +229,28 @@ sub click {
     SendMouse($button);
 }
 
-# Start a new game
+=head2 new_game
+
+	$sweeperbot->new_game;
+
+Starts a new game of minesweeper.  C<locate_minesweeper()> must
+have been called previously for this to work.
+
+Does not return a value, nor does it check to see if a new game
+has been successfully started.
+
+=cut
+
+
+# TODO: Rather than using the reset variables, we should properly
+# calculate the location of our reset button.  We have calibration
+# code elsewhere that essentially finds the smiley, we just have to
+# click on it.
+
 sub new_game {
     our ($reset_x,$reset_y);
     click($reset_x,$reset_y);
+    return;
 }
 
 # Focus on the Minesweeper window by clicking a little to the left of the game
@@ -360,7 +427,7 @@ sub game_over {
 }
 
 sub make_move {
-	my ($game_state) = @_;
+	my ($this, $game_state) = @_;
 	our ($squares_x, $squares_y);
 	my $altered_board = 0;
 	foreach my $y (1..$squares_y) {
