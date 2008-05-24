@@ -40,7 +40,7 @@ use NEXT;
 
 use 5.006;
 
-our $VERSION = '0.02';
+our $VERSION = '0.03';
 
 use Scalar::Util qw(looks_like_number);
 use Win32::Process qw(NORMAL_PRIORITY_CLASS);
