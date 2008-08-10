@@ -346,9 +346,9 @@ calibrate itself if required.
 
 =cut
 
-# TODO GuiTest doesn't check the Image::Magick return codes, it
-# just assumes everything works.  We should consider writing our
-# own code that _does_ test, since these diagnostics are very
+# TODO - Win32::Screenshot doesn't check the Image::Magick return
+# codes, it just assumes everything works.  We should consider writing
+# our own code that _does_ test, since these diagnostics are very
 # useful when things go wrong.
 
 sub capture_square {
