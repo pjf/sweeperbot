@@ -1,4 +1,4 @@
-=head1 App::SweeperBot - Play MineSweeper, automatically!
+=head1 App::SweeperBot - Play Minesweeper, automatically!
 
 You sit down at the machine, it's running Windows.  Those other
 operating systems are pretty good, but they're lacking that one killer
@@ -6,39 +6,39 @@ app, the one reason why Windows still has market dominance.
 
 Minesweeper.
 
-Yes, good old minesweeper!  You'll just play one game, on
+Yes, good old Minesweeper!  You'll just play one game, on
 intermediate, and then start on your real work.  Just a little morsel
 of relaxation.  Three hours later, you're wondering what happened to
 your day.
 
-Does this story sound familiar, or have you a friend or workmate
-who's in the jaws of the minesweeper vice?  I know that I was, so
+Does this story sound familiar, or have you a friend or work-mate
+who's in the jaws of the Minesweeper vice?  I know that I was, so
 one day, I decided to do something about it.
 
-I'd program my machine to play minesweeper for me.
+I'd program my machine to play Minesweeper for me.
 
 I'd automated the rest of my life; I have programs to read my
 mail, to plan my exercise, and to pay my bills.  Automating my
 leisure time was the obvious next step.  Having a program to
-play minesweeper for me would give me more time for the more
-important things in life... like solitaire.
+play Minesweeper for me would give me more time for the more
+important things in life... like Solitaire.
 
 It was from this realisation that C<App::SweeperBot> was born.
 
-=head2 Creating a minesweeper bot
+=head2 Why a Minesweeper bot?
 
 I'm a lazy person.  I hate having to do things myself, and I
 really hate having to write my own code.  Indeed, one of the
 motivating factors for writing C<App::SweeperBot> is that much
 of the hard work had already been done for me.
 
-Matt Sparks (<http://www.f0rked.com>) had already written an almost
-complete minesweeper bot, doing what I had considered all the "hard
+Matt Sparks (L<http://www.f0rked.com>) had already written an almost
+complete Minesweeper bot, doing what I had considered all the "hard
 parts".  Matt's code was able to locate the board, start a new game,
 and identify the contents of various squares.  All I had to do was to
 write an algorithm to get it to play.
 
-When asked by serious professionals with lots of money why I
+Of course, when asked by serious professionals with lots of money why I
 wrote C<App::SweeperBot>, I claim it's because it provides an
 excellent working example of being able to examine and control
 GUI applications using Perl.  These techniques can be a great
@@ -46,10 +46,10 @@ advantage in testing and automation.
 
 =head2 Locating Minesweeper
 
-The first step for SweeperBot in playing minesweeper is to
+The first step for SweeperBot in playing Minesweeper is to
 locate the game on the screen.  SweeperBot uses the
 C<Win32::GuiTest> module for GUI manipulation, and this
-also makes locating the minesweeper board easy:
+also makes locating the Minesweeper board easy:
 
     use Win32::GuiTest qw(FindWindowLike);
 
@@ -61,7 +61,7 @@ C<FindWindowLike> is the root of our window search; it can be
 an existing window if we're looking for a dialog box or
 similar window spawned by an application, but for SweeperBot
 we're using C<0>, to look for any window that matches our
-critera.
+criteria.
 
 The second argument is a regexp that matches our window name.
 In the case of SweeperBot, I'm simply looking for any window
@@ -69,7 +69,7 @@ that starts with C<Minesweeper>.
 
 Once we've found our window, the next task is to determine how
 large it is; SweeperBot needs this information to determine the size
-of the minsweeper grid, and to locate the all-important smiley face
+of the Minesweeper grid, and to locate the all-important smiley face
 that's used to determine our game state (won/lost/playing) and to
 reset the game.
 
@@ -85,8 +85,8 @@ the top-left of the entire display being considered pixel (0,0).
 
 The calculations for determining the size of the grid and the
 position of the smiley are not shown, but they mostly consist
-of basic arithmatic (each square is 16 x 16 pixels, and the
-smiley is always in the center-top part of the window).
+of basic arithmetic (each square is 16 x 16 pixels, and the
+smiley is always in the centre-top part of the window).
 
 =head2 Reading the screen
 
@@ -108,19 +108,19 @@ the rectangle desired, and the desired width and height of the
 rectangle.
 
 In the code above, C<$LEFT_OFFSET> and C<$TOP_OFFSET> are values that
-take us to the top-left of the minesweeper grid, past any window
+take us to the top-left of the Minesweeper grid, past any window
 decorations.  C<$sx> and C<$sy> are the square SweeperBot wishes to
 sample, and C<SQUARE_WIDTH> and C<SQUARE_HEIGHT> are constants
-containing the width and height of a minesweeper square; in this case
+containing the width and height of a Minesweeper square; in this case
 they're 16 pixels each.
 
 As a convention, I use C<$sx> and C<$sy> when measuring an offset
-in minesweeper squares, and C<$x> and C<$y> when measuring in
+in Minesweeper squares, and C<$x> and C<$y> when measuring in
 pixels.  Without this convention, parts of the application code
 would be significantly more difficult to understand.
 
 The resulting C<$image> is actually an C<Image::Magick> object,
-which are extremely versitile, and therefore provide a great
+which are extremely versatile, and therefore provide a great
 amount of flexibility in how we can analyse the information
 contained within.
 
@@ -144,7 +144,7 @@ of them.
 
 The C<Win32::GuiTest> module provides a way both to move the mouse and
 press buttons, and using this we can construct a simple subroutine to
-click on an arbitary part of the display:
+click on an arbitrary part of the display:
 
     use Win32::GuiTest qw(MouseMoveAbsPix SendMouse);
 
@@ -157,8 +157,8 @@ click on an arbitary part of the display:
     }
 
 However we don't want to be clicking anywhere on our display, we
-specifically want to be clicking on minesweeper squares.  Luckily,
-we already know the size of them, and the position of our minesweeper
+specifically want to be clicking on Minesweeper squares.  Luckily,
+we already know the size of them, and the position of our Minesweeper
 window, so writing a subroutine to do this becomes easy:
 
     sub press {
@@ -195,7 +195,7 @@ a mine (right-click) or pressing all squares adjacent to it
 =head2 Putting it all together
 
 With the techniques seen, it's now possible to play a basic
-game of minsweeper.  We have code to locate the window, sample
+game of Minesweeper.  We have code to locate the window, sample
 the contents, and manipulate controls.
 
 In C<App::SweeperBot>, the algorithm to actually play is found
@@ -207,13 +207,13 @@ the square as appropriate.  If SweeperBot walks through the entire
 board without flagging or pressing any squares, it takes a guess and
 steps on a random covered square.
 
-This isn't an optimal minesweeper strategy, since looking further than
+This isn't an optimal Minesweeper strategy, since looking further than
 just the adjacent squares can reveal more information about each
 square.  Likewise, when guessing, it should be possible to use the
-information available to determine the safest guessess and try those
+information available to determine the safest guesses and try those
 first.  Presently, SweeperBot does neither.
 
-Luckily, you can write your own algorithm for playing by subclassing
+Luckily, you can write your own algorithm for playing by sub-classing
 C<App::SweeperBot>:
 
     package My::SweeperBot;
@@ -224,7 +224,7 @@ C<App::SweeperBot>:
         my ($this, $state) = @_;
 
         # Make your moves here.  When this subroutine is exited,
-        # AppSweeperBot will check the game state, and if we haven't
+        # App::SweeperBot will check the game state, and if we haven't
         # won or lost, it will re-sample the board and call
         # make_move again.
 
@@ -237,7 +237,7 @@ what Matt's original code used.
 
 =head2 Cheating
 
-Because my algorithm for playing minesweeper isn't very good,
+Because my algorithm for playing Minesweeper isn't very good,
 SweeperBot can also be run using the xyzzy cheat, that
 reveals information about the contents of each mine by changing
 the colour of top-left pixel of the entire display.  If cheating is
@@ -304,12 +304,12 @@ is responsible for a significant portion of the final executable.
 Much of the code in C<App::SweeperBot> reflects its history
 of being a stand-alone script.  As such, it's not possible to
 create multiple SweeperBot objects for playing multiple games
-of minesweeper simultaneously, since too much information is
+of Minesweeper simultaneously, since too much information is
 read from package variables.  This information should be moved
 to be internal to each individual C<App::SweeperBot> object.
 
 The other obvious flaw with SweeperBot is that it plays
-minesweeper only about as well as I do.  Luckily this can
+Minesweeper only about as well as I do.  Luckily this can
 easily be changed by sub-classing and writing a new
 C<make_move> method, as described earlier in this article.
 
