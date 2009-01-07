@@ -12,34 +12,40 @@ END {
 	<STDIN>;
 }
 
-my $bot = App::SweeperBot->new;
-
-# Start Minesweeper.
-
-$bot->spawn_minesweeper;
-
-sleep(2);	# Wait for game to start
-
-$bot->locate_minesweeper;
-$bot->enable_cheats if App::SweeperBot::CHEAT;
+my $spawned = 0;
 
 while (1) {
+    my $bot = App::SweeperBot->new;
 
-	print "Starting a new game\n";
-	$bot->new_game();
+    if (not $spawned) {
 
-	while(1) {
+        # Start Minesweeper.
 
-	    if (my $state = $bot->game_over) {
-		print "Game over!  ", $state > 0 ? "We won!\n" : "We lost!\n";
-		last;
-	    }
+        $bot->spawn_minesweeper;
 
-	    my $game_state = $bot->capture_game_state();
+        sleep(2);	# Wait for game to start
 
-	    $bot->make_move($game_state);
-	}
+        $spawned = 1;
+    }
 
-	print "Waiting 5 seconds before next game\n";
-	sleep(5);
+    $bot->locate_minesweeper;
+    $bot->enable_cheats if App::SweeperBot::CHEAT;
+
+    print "Starting a new game\n";
+    $bot->new_game();
+
+    while(1) {
+
+        if (my $state = $bot->game_over) {
+            print "Game over!  ", $state > 0 ? "We won!\n" : "We lost!\n";
+            last;
+        }
+
+        my $game_state = $bot->capture_game_state();
+
+        $bot->make_move($game_state);
+    }
+
+    print "Waiting 5 seconds before next game\n";
+    sleep(5);
 }

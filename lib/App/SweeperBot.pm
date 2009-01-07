@@ -429,6 +429,9 @@ is the top-left square.  Does not return a value.
 
 sub press {
     my($this, $sx,$sy,$button)=@_;
+
+    $this->mark_altered($sx,$sy);
+
     $button ||= "{LEFTCLICK}";
     our($l,$t);
     $this->click(
@@ -453,6 +456,15 @@ is the top-left of the grid.  Does not return a value.
 # Stomp on a square (left+right click)
 sub stomp {
 	my ($this, $x, $y) = @_;
+
+        # Mark all adjacent squares as altered.
+
+        foreach my $xx ($x-1, $x, $x+1) {
+            foreach my $yy ($y-1, $y, $y+1) {
+                $this->mark_altered($xx, $yy);
+            }
+        }
+
 	$this->press($x,$y,"{MIDDLECLICK}");
 
 	return;
@@ -488,29 +500,6 @@ sub flag_mines {
 
 	return;
 }
-
-=begin deprecated
-
-# This code is left here as a mathom, but isn't used anymore.
-# Generally we want to call flag_mines() to flag mines, or
-# stomp() to stomp on a square.
-
-sub mark_adjacent {
-	my ($this, $x, $y) = @_;
-	$this->press($x-1,$y-1,"{RIGHTCLICK}");
-	$this->press($x  ,$y-1,"{RIGHTCLICK}");
-	$this->press($x+1,$y-1,"{RIGHTCLICK}");
-
-	$this->press($x-1,$y  ,"{RIGHTCLICK}");
-	$this->press($x+1,$y  ,"{RIGHTCLICK}");
-
-	$this->press($x-1,$y+1,"{RIGHTCLICK}");
-	$this->press($x  ,$y+1,"{RIGHTCLICK}");
-	$this->press($x+1,$y+1,"{RIGHTCLICK}");
-
-}
-
-=end deprecated
 
 =head2 game_over
 
@@ -695,6 +684,55 @@ sub make_move {
 	return;
 }
 
+=head2 mark_altered
+
+    $this->mark_altered($x,$y);
+
+Record the square as having been altered in some way.  It will be checked
+for its new value at the next call to C<capture_game_state> (below).
+
+=cut
+
+sub mark_altered {
+    my ($this, $x, $y) = @_;
+
+    push( @{ $this->{altered_squares} }, [$x,$y] );
+
+    return;
+}
+
+=head2 get_altered
+
+    my @altered = $this->get_altered();
+
+Returns a list of C< [$x,$y] > tuples containing squares that
+have been altered since the last call to C<clear_altered>.  This
+list may be empty if no squares have been changed.
+
+=cut
+
+sub get_altered {
+    my ($this) = @_;
+
+    return @{ $this->{altered_squares} || [] };
+}
+
+=head2 clear_altered
+
+    $this->clear_altered();
+
+Clears the list of altered squares.
+
+=cut
+
+sub clear_altered {
+    my ($this) = @_;
+
+    $this->{altered_squares} = [];
+
+    return;
+}
+
 =head2 capture_game_state
 
 	my $game_state = $sweeperbot->capture_game_state;
@@ -707,14 +745,68 @@ in a particular square can be accessed with:
 
 Where (1,1) is considered the top-left of the game board.
 
+If C<mark_altered> has been called since the last call to
+C<capture_game_state>, and a previous game state is recorded,
+then only the altered squares (and possibly their neighbours) are checked.
+
 =cut
 
 sub capture_game_state {
 
 	my ($this) = @_;
 
-	my $game_state = [];
 	our ($squares_x, $squares_y);
+
+        # Use our existing game-state if we have it.
+	my $game_state = $this->{game_state} || [];
+
+        my @altered_squares = $this->get_altered;
+
+        # If we have a reasonable looking game-state, and
+        # a list of altered squares, then only sample those
+        # squares.
+
+        if (@altered_squares and @$game_state) {
+            while ( my $tuple = shift @altered_squares) {
+                my ($x, $y) = @$tuple;
+
+                # Skip squares that are out of bounds.
+
+                if (
+                    $x < 1 or $x > $squares_x or
+                    $y < 1 or $y > $squares_y
+                ) {
+                    next;
+                }
+
+                # Skip any squares where we already know the value.
+                next if $game_state->[$x][$y] ne "unpressed";
+
+                my $new_value = $this->value($x,$y);
+
+                $game_state->[$x][$y] = $new_value;
+
+                print "Found $new_value at ($x,$y)\n";
+
+                # If we have a blank square, we must sample its
+                # neighbours.
+
+                if ($new_value eq "0") {
+                    foreach my $xx ($x-1, $x, $x+1) {
+                        foreach my $yy ($y-1, $y, $y+1) {
+                            next if $game_state->[$xx][$yy] ne "unpressed";
+                            push(@altered_squares, [$xx, $yy]);
+                        }
+                    }
+                }
+            }
+
+            $this->clear_altered;
+
+            return $this->{game_state} = $game_state;
+        }
+
+        # Otherwise, sample the entire board.
 
 	for my $y (1..$squares_y) {
     		for my $x (1..$squares_x) {
@@ -739,7 +831,7 @@ sub capture_game_state {
 		$game_state->[$squares_x+1][$y] = 0;
 	}
 
-	return $game_state;
+	return $this->{game_state} = $game_state;
 }
 
 =head2 adjacent_mines_for
@@ -867,6 +959,12 @@ sub cheat_is_square_safe {
 		$t+$Square1Y+($square->[1]-1)*SQUARE_H+SQUARE_W/2,
 	);
 
+        # Yield our process, so that the minesweeper game has a chance
+        # to update itself.
+
+        print "Yielding\n";
+        sleep(0.5);
+
 	# Capture our pixel.
 	my $pixel =  CaptureRect(0,0,1,1);
 
@@ -898,6 +996,9 @@ and forcing the user to go and do something productive instead.
 All methods that require a game-state to be passed will be modified
 in the future to be usable without the game-state.  The
 C<App::SweeperBot> object itself should be able to retain state.
+
+A new SweeperBot object should be created after a game is terminated.
+Currently the object does not clean its state reliably between games.
 
 =head1 AUTHOR
 
